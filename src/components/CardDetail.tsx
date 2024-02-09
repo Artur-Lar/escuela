@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import axios from "axios";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../redux-saga/store";
+import { translateWordRequest } from "../redux-saga/cardDetailAction";
+// import { uploadImageRequest } from "../redux-saga/imageActions";
+import { storage } from "../firebase";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 import "./Styles-for-CardDetail.css";
 
@@ -36,31 +41,79 @@ const CardDetail: React.FC<CardDetailProps> = ({
   const [newWord, setNewWord] = useState("");
   const [editWord, setEditWord] = useState<Word | null>(null);
   const [wordList, setWordList] = useState<Word[]>(card?.words || []);
-  const [showWordList, setShowWordList] = useState<boolean>(false);
+  const [showWordList, setShowWordList] = useState<boolean>(true);
   const [isInputEmpty, setIsInputEmpty] = useState<boolean>(true);
   const [showInfo, setShowInfo] = useState(true);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  const translateWord = async (
-    word: string,
-    sourceLang: string,
-    targetLang: string
-  ): Promise<string | null> => {
+  const dispatch = useDispatch();
+
+  const { translatedText, error } = useSelector(
+    (state: RootState) => state.translate
+  );
+
+  // Начальное состояние с пятью испанскими словами и их переводами
+  useEffect(() => {
+    const initialWords: Word[] = [
+      {
+        id: 1,
+        spanish: "casa",
+        english: "house",
+        russian: "дом",
+      },
+      {
+        id: 2,
+        spanish: "perro",
+        english: "dog",
+        russian: "собака",
+      },
+      {
+        id: 3,
+        spanish: "gato",
+        english: "cat",
+        russian: "кот",
+      },
+      {
+        id: 4,
+        spanish: "sol",
+        english: "sun",
+        russian: "солнце",
+      },
+      {
+        id: 5,
+        spanish: "agua",
+        english: "water",
+        russian: "вода",
+      },
+    ];
+
+    setWordList(initialWords);
+  }, []);
+
+  const handleFirebaseImageUpload = async (file: File) => {
+    const storageRef = ref(storage, file.name); // Получаем ссылку на файл в Firebase Storage
+
     try {
-      const response = await axios.get(
-        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
-          word
-        )}&langpair=${sourceLang}|${targetLang}`
-      );
+      // Загружаем файл в Firebase Storage
+      const fileSnapshot = await uploadBytes(storageRef, file);
 
-      if (response.data.responseData) {
-        return response.data.responseData.translatedText;
-      } else {
-        console.error("Ошибка в ответе MyMemory API:", response.data);
-        return null;
-      }
-    } catch (error: any) {
-      console.error("Ошибка при обращении к MyMemory API:", error.message);
-      return null;
+      // Получаем URL загруженного изображения из Firebase Storage
+      const imageUrl = await getDownloadURL(fileSnapshot.ref);
+      setSelectedImage(imageUrl);
+      console.log("URL загруженного изображения:", imageUrl);
+      // Здесь вы можете использовать URL для отображения загруженного изображения на странице
+    } catch (error) {
+      console.error(
+        "Ошибка при загрузке изображения из Firebase Storage:",
+        error
+      );
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      handleFirebaseImageUpload(file);
     }
   };
 
@@ -72,28 +125,8 @@ const CardDetail: React.FC<CardDetailProps> = ({
       setWordList(updatedWordList);
       setEditWord(null);
     } else {
-      const englishTranslation = await translateWord(newWord, "es", "en");
-      const russianTranslation = await translateWord(newWord, "es", "ru");
-
-      if (englishTranslation !== null && russianTranslation !== null) {
-        const newWordObj: Word = {
-          id: Date.now(),
-          spanish: newWord,
-          english: englishTranslation,
-          russian: russianTranslation,
-        };
-        setWordList([...wordList, newWordObj]);
-
-        if (card) {
-          const updatedCard: Card = {
-            ...card,
-            words: [...wordList, newWordObj],
-          };
-          addWord(updatedCard);
-        }
-
-        setShowWordList(true);
-      }
+      dispatch(translateWordRequest(newWord, "es", "en"));
+      dispatch(translateWordRequest(newWord, "es", "ru"));
     }
 
     setNewWord("");
@@ -114,16 +147,49 @@ const CardDetail: React.FC<CardDetailProps> = ({
     }
   };
 
-  const handleHideInfo = () => {
-    setShowInfo(false);
-  };
-
-  useEffect(() => {}, [card]);
-
   useEffect(() => {
-    // Установка состояния пустого инпута
     setIsInputEmpty(newWord.trim() === "");
   }, [newWord]);
+
+  useEffect(() => {
+    const isTranslatedTextValid = (
+      text: any
+    ): text is { en: string; ru: string } =>
+      typeof text === "object" &&
+      text !== null &&
+      typeof text.en === "string" &&
+      typeof text.ru === "string";
+
+    if (isTranslatedTextValid(translatedText)) {
+      const englishTranslation = translatedText.en;
+      const russianTranslation = translatedText.ru;
+
+      const newWordObj: Word = {
+        id: Date.now(),
+        spanish: newWord,
+        english: englishTranslation,
+        russian: russianTranslation,
+      };
+
+      setWordList((prevWordList) => [...prevWordList, newWordObj]);
+
+      if (card) {
+        const updatedCard: Card = {
+          ...card,
+          words: [...wordList, newWordObj],
+        };
+        addWord(updatedCard);
+      }
+
+      setShowWordList(true);
+    }
+  }, [translatedText]);
+
+  useEffect(() => {
+    if (error !== null) {
+      console.error("Ошибка при запросе на перевод слова:", error);
+    }
+  }, [error]);
 
   if (!card) {
     return <div>Карточка не найдена</div>;
@@ -136,12 +202,12 @@ const CardDetail: React.FC<CardDetailProps> = ({
           <p>
             <strong>
               Начните заполнять вашу карточку!!! <br /> Вы можете записать слово
-              на испанском языке и в вашу карточку добавятся переводы слова на
+              на испанском языке и в вашей карточке появятся переводы слова на
               английский и русский языки. Вы также можете редактировать слово на
               испанском
             </strong>
           </p>
-          <button className="myButton" onClick={handleHideInfo}>
+          <button className="myButton" onClick={() => setShowInfo(false)}>
             Понятно
           </button>
         </div>
@@ -150,6 +216,23 @@ const CardDetail: React.FC<CardDetailProps> = ({
 
       {showWordList && (
         <>
+          <button
+            className="myButton"
+            onClick={() => document.getElementById("fileInput")?.click()}
+          >
+            <input
+              id="fileInput"
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              style={{ display: "none" }}
+            />
+            Загрузить изображение
+          </button>
+          <div
+            className="image-container"
+            style={{ backgroundImage: `url(${selectedImage})` }}
+          ></div>
           <h2>Изучаемые слова:</h2>
           <ul className="list-of-words">
             {wordList.map((word) => (
@@ -187,7 +270,7 @@ const CardDetail: React.FC<CardDetailProps> = ({
         <button
           className={`myButton ${isInputEmpty ? "disabledButton" : ""}`}
           onClick={handleAddWord}
-          disabled={isInputEmpty} // Устанавливаем disabled на основе состояния пустого инпута
+          disabled={isInputEmpty}
         >
           {editWord !== null ? "Редактировать" : "Добавить слово"}
         </button>

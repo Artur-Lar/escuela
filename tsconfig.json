@@ -16,6 +16,11 @@
     "noEmit": true,
     "downlevelIteration": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.d.ts",
+    "src/firebase.ts"
+  ],
   "exclude": ["node_modules"]
 }
