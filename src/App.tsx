@@ -35,7 +35,6 @@ const firebaseConfig = {
 const initializeFirebase = () => {
   const app = initializeApp(firebaseConfig);
   const analytics = getAnalytics(app);
-  // Возможно, здесь вам нужно будет добавить дополнительные настройки Firebase, например, для базы данных, аутентификации и т.д.
 };
 
 const App: React.FC = () => {

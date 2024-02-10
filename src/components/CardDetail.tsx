@@ -91,17 +91,13 @@ const CardDetail: React.FC<CardDetailProps> = ({
   }, []);
 
   const handleFirebaseImageUpload = async (file: File) => {
-    const storageRef = ref(storage, file.name); // Получаем ссылку на файл в Firebase Storage
+    const storageRef = ref(storage, file.name);
 
     try {
-      // Загружаем файл в Firebase Storage
       const fileSnapshot = await uploadBytes(storageRef, file);
-
-      // Получаем URL загруженного изображения из Firebase Storage
       const imageUrl = await getDownloadURL(fileSnapshot.ref);
       setSelectedImage(imageUrl);
       console.log("URL загруженного изображения:", imageUrl);
-      // Здесь вы можете использовать URL для отображения загруженного изображения на странице
     } catch (error) {
       console.error(
         "Ошибка при загрузке изображения из Firebase Storage:",

@@ -1,6 +1,6 @@
 import { put, takeEvery, call } from "redux-saga/effects";
 import axios from "axios";
-import { translateWordSuccess, translateWordFailure } from "./cardDetailAction"; // Правильно импортируем экшены из cardDetailAction.ts
+import { translateWordSuccess, translateWordFailure } from "./cardDetailAction";
 
 function* translateWordSaga(action: any): Generator<any, void, any> {
   const { word, sourceLang, targetLang } = action.payload;

@@ -1,5 +1,3 @@
-// file: src/redux-saga/imageReducer.ts
-
 import {
   ImageActionTypes,
   UPLOAD_IMAGE_SUCCESS,

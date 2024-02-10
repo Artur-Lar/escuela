@@ -1,11 +1,10 @@
-// store.ts
 import { createStore, applyMiddleware, combineReducers } from "redux";
 import createSagaMiddleware from "redux-saga";
 import translateReducer, { TranslateState } from "./reducer";
 import rootSaga from "./saga";
 
 export interface RootState {
-  translate: TranslateState; // Состояние для translateReducer
+  translate: TranslateState;
 }
 
 const rootReducer = combineReducers({

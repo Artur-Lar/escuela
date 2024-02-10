@@ -1,4 +1,3 @@
-// actions.ts
 import { TRANSLATE_WORD_SUCCESS, TRANSLATE_WORD_FAILURE } from "./types";
 
 export const translateWordRequest = (
